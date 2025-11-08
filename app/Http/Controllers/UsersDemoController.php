@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class UsersDemoController extends Controller
 {
@@ -43,15 +44,22 @@ class UsersDemoController extends Controller
         $token = $next ?? $prev;
         $dir = $prev ? 'prev' : 'next';
         $sort = ['created_at', 'id'];
+        $operators = [
+            'created_at' => [
+                'next' => '>=',
+                'prev' => '<=',
+            ],
+            'id' => [
+                'next' => '>',
+                'prev' => '<',
+            ]
+        ];
 
         $dto = $token
             ? CursorFactory::fromToken(token: $token)
             : CursorFactory::fromParams(sort: $sort, dir: $dir);
 
         $query = DB::table('users');
-        foreach ($sort as $column) {
-            $query->orderBy($column);
-        }
 
         if ($dto->hwm !== null) {
             foreach ($dto->hwm as $column => $value) {
@@ -59,24 +67,31 @@ class UsersDemoController extends Controller
             }
         }
 
-        $paginate = $query->cursorPaginate(
-            perPage: $limit,
-            cursor: CursorAdapter::makePaginate(dto: $dto)
-        );
+        foreach ($dto->pos ?? [] as $column => $value) {
+            $query->where($column, $operators[$column][$dir], $value);
+        }
+
+        $dir = $dir == 'next' ? 'asc' : 'desc';
+        foreach ($sort as $column) {
+            $query->orderBy($column, $dir);
+        }
+
+        Log::info($query->limit($limit)->toSql());
+        $items = $query->limit($limit)->get()->toArray();
 
         return response()->json([
             'limit' => $limit,
             'next' => CursorAdapter::makeNext(
+                items: $items,
                 sort: $sort,
-                nextCursor: $paginate->nextCursor(),
                 hwm: ['created_at' => Carbon::now()],
             ),
             'prev' => CursorAdapter::makePrev(
+                items: $items,
                 sort: $sort,
-                prevCursor: $paginate->previousCursor(),
                 hwm: ['created_at' => Carbon::now()],
             ),
-            'items' => $paginate->items(),
+            'items' => $items,
         ]);
     }
 
@@ -91,6 +106,16 @@ class UsersDemoController extends Controller
         $token = $next ?? $prev;
         $dir = $next ? 'next' : ($prev ? 'prev' : null);
         $sort = ['created_at', 'id'];
+        $operators = [
+            'created_at' => [
+                'next' => '>=',
+                'prev' => '<=',
+            ],
+            'id' => [
+                'next' => '>',
+                'prev' => '<',
+            ]
+        ];
 
         $query = DB::table('users');
         foreach ($sort as $column) {
@@ -105,14 +130,9 @@ class UsersDemoController extends Controller
 
             $items = $data->items();
             if ($data->hasMorePages()) {
-                $dto = CursorFactory::fromItems(
+                $nextCursor = CursorAdapter::makeNext(
                     items: $items,
                     sort: $sort,
-                    dir: 'next',
-                );
-                $nextCursor = CursorAdapter::makeNext(
-                    sort: $sort,
-                    nextCursor: CursorAdapter::makePaginate(dto: $dto),
                     hwm: ['created_at' => Carbon::now()],
                 );
             }
@@ -133,24 +153,31 @@ class UsersDemoController extends Controller
             }
         }
 
-        $paginate = $query->cursorPaginate(
-            perPage: $limit,
-            cursor: CursorAdapter::makePaginate(dto: $dto)
-        );
+        foreach ($dto->pos ?? [] as $column => $value) {
+            $query->where($column, $operators[$column][$dir], $value);
+        }
+
+        $dir = $dir == 'next' ? 'asc' : 'desc';
+        foreach ($sort as $column) {
+            $query->orderBy($column, $dir);
+        }
+
+        Log::info($query->limit($limit)->toSql());
+        $items = $query->limit($limit)->get()->toArray();
 
         return response()->json([
             'limit' => $limit,
             'next' => CursorAdapter::makeNext(
+                items: $items,
                 sort: $sort,
-                nextCursor: $paginate->nextCursor(),
                 hwm: ['created_at' => Carbon::now()],
             ),
-            'prev' => CursorAdapter::makePrev(
+            'prev' => CursorAdapter::makeNext(
+                items: $items,
                 sort: $sort,
-                prevCursor: $paginate->previousCursor(),
                 hwm: ['created_at' => Carbon::now()],
             ),
-            'items' => $paginate->items(),
+            'items' => $items,
         ]);
     }
 }
