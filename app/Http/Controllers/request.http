@@ -1,0 +1,41 @@
+### Offset request
+GET {{host}}/api/demo/users/offset?limit=5&page=100000
+
+### Cursor request (first)
+GET {{host}}/api/demo/users/cursor?limit=5
+
+> {%
+    const next = response.body.next;
+    client.global.clear("next");
+    client.global.set("next", next);
+
+    // client.log("next =", next);
+%}
+
+### Cursor request (second)
+GET {{host}}/api/demo/users/cursor?limit=5&next={{next}}
+
+> {%
+    const next = response.body.next;
+    client.global.clear("next");
+    client.global.set("next", next);
+%}
+
+### Cursor with offset request (first)
+GET {{host}}/api/demo/users/hybrid?limit=5&page=100000
+
+> {%
+    const next = response.body.next;
+    client.global.clear("next");
+    client.global.set("next", next);
+%}
+
+### Cursor with offset request (second)
+GET {{host}}/api/demo/users/hybrid?limit=5&next={{next}}
+
+> {%
+    const next = response.body.next;
+    client.global.clear("next");
+    client.global.set("next", next);
+%}
+
