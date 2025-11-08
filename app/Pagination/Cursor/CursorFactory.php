@@ -14,6 +14,7 @@ final class CursorFactory
     public static function fromItems(
         array $items,
         array $sort,
+        string $dir,
         array $filters = [],
         array $hwm = null,
         int $ttlMinutes = self::DEFAULT_TTL,
@@ -28,6 +29,7 @@ final class CursorFactory
         }
 
         return new CursorDto(
+            dir: $dir,
             filters: $filters,
             sort: $sort,
             pos: $pos,
@@ -38,21 +40,23 @@ final class CursorFactory
         );
     }
 
-    public static function fromNext(
-        string $next,
+    public static function fromToken(
+        string $token,
     ): CursorDto {
-        $data = CursorCodec::decode($next);
+        $data = CursorCodec::decode($token);
         return CursorDto::fromArray($data);
     }
 
     public static function fromParams(
         array $sort,
+        string $dir,
         array $pos = null,
         array $hwm = null,
         array $filters = [],
         int $ttlMinutes = self::DEFAULT_TTL,
     ): CursorDto {
         return new CursorDto(
+            dir: $dir,
             filters: $filters,
             sort: $sort,
             pos: $pos,

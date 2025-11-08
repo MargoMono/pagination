@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use Illuminate\Support\Facades\Crypt;
 use RuntimeException;
 
 final class CursorCodec
@@ -16,7 +17,7 @@ final class CursorCodec
             throw new RuntimeException('Failed to JSON-encode cursor payload');
         }
 
-        return self::base64UrlEncode($json);
+        return Crypt::encryptString($json);
     }
 
     public static function decode(?string $token): array
@@ -25,36 +26,9 @@ final class CursorCodec
             return [];
         }
 
-        $decoded = self::base64UrlDecode($token);
-        if ($decoded === null) {
-            return [];
-        }
+        $json = Crypt::decryptString($token);
+        $data = json_decode($json, true);
 
-        $data = json_decode($decoded, true);
-        if (!is_array($data)) {
-            return [];
-        }
-
-        return $data;
-    }
-
-    private static function base64UrlEncode(string $value): string
-    {
-        $b64 = base64_encode($value);
-
-        return rtrim(strtr($b64, '+/', '-_'), '=');
-    }
-
-    private static function base64UrlDecode(string $value): ?string
-    {
-        $remainder = strlen($value) % 4;
-        if ($remainder > 0) {
-            $value .= str_repeat('=', 4 - $remainder);
-        }
-
-        $b64 = strtr($value, '-_', '+/');
-        $decoded = base64_decode($b64, true);
-
-        return $decoded === false ? null : $decoded;
+        return is_array($data) ? $data : [];
     }
 }

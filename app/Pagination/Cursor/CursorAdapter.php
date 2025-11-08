@@ -17,35 +17,63 @@ final class CursorAdapter
 
         return new Cursor(
             parameters: $dto->pos,
-            pointsToNextItems: $dto->dir,
+            pointsToNextItems: $dto->dir === 'next',
         );
     }
 
-
     public static function makeNext(
         array $sort,
-        Cursor $nextCursor,
+        Cursor|null $nextCursor,
         array $hwm = [],
         array $filters = [],
-    ): string {
-        $nextPos = array_reduce(
-            $sort,
-            static function (array $carry, string $col) use ($nextCursor): array {
-                $column = ltrim($col, '-');
-                $carry[$column] = $nextCursor->parameter($column);
-
-                return $carry;
-            },
-            [],
-        );
-
+    ): string|null {
+        if ($nextCursor === null) {
+            return null;
+        }
         $next = CursorFactory::fromParams(
             sort: $sort,
-            pos: $nextPos,
+            dir: 'next',
+            pos: self::getPos(sort: $sort, cursor: $nextCursor),
             hwm: $hwm,
             filters: $filters,
         );
 
         return CursorCodec::encode($next->toArray());
+    }
+
+    public static function makePrev(
+        array $sort,
+        Cursor|null $prevCursor,
+        array $hwm = [],
+        array $filters = [],
+    ): string|null {
+        if ($prevCursor === null) {
+            return null;
+        }
+        $prev = CursorFactory::fromParams(
+            sort: $sort,
+            dir: 'prev',
+            pos: self::getPos(sort: $sort, cursor: $prevCursor),
+            hwm: $hwm,
+            filters: $filters,
+        );
+
+        return CursorCodec::encode($prev->toArray());
+    }
+
+    private static function getPos(
+        array $sort,
+        Cursor $cursor,
+    ) {
+        return array_reduce(
+            $sort,
+            static function (array $carry, string $col) use ($cursor): array {
+                $column = ltrim($col, '-');
+                $carry[$column] = $cursor->parameter($column);
+
+                return $carry;
+            },
+            [],
+        );
     }
 }
