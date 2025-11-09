@@ -8,7 +8,6 @@ use App\Support\CursorCodec;
 
 final class CursorAdapter
 {
-
     public static function makeNext(
         array $items,
         array $sort,
@@ -21,7 +20,7 @@ final class CursorAdapter
         $next = CursorFactory::fromItems(
             items: $items,
             sort: $sort,
-            dir: 'next',
+            dir: CursorDirection::NEXT,
             filters: $filters,
             hwm: $hwm,
         );
@@ -41,7 +40,7 @@ final class CursorAdapter
         $prev = CursorFactory::fromItems(
             items: $items,
             sort: $sort,
-            dir: 'prev',
+            dir: CursorDirection::PREV,
             filters: $filters,
             hwm: $hwm,
         );

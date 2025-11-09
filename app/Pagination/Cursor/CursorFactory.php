@@ -14,14 +14,14 @@ final class CursorFactory
     public static function fromItems(
         array $items,
         array $sort,
-        string $dir,
+        CursorDirection $dir,
         array $filters = [],
         array $hwm = null,
         int $ttlMinutes = self::DEFAULT_TTL,
     ): CursorDto {
         if (empty($items)) {
             return new CursorDto(
-                dir: $dir,
+                dir: $dir->value,
                 filters: $filters,
                 sort: $sort,
                 hwm: $hwm,
@@ -31,7 +31,7 @@ final class CursorFactory
             );
         }
 
-        $boundaryItem = $dir === 'prev'
+        $boundaryItem = $dir === CursorDirection::PREV
             ? $items[array_key_first($items)]
             : $items[array_key_last($items)];
 
@@ -41,7 +41,7 @@ final class CursorFactory
         }
 
         return new CursorDto(
-            dir: $dir,
+            dir: $dir->value,
             filters: $filters,
             sort: $sort,
             pos: $pos,

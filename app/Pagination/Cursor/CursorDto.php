@@ -7,12 +7,11 @@ namespace App\Pagination\Cursor;
 class CursorDto
 {
     private const DEFAULT_VERSION = 1;
-    private const DEFAULT_DIR = 'next';
     private const DEFAULT_SORT = ['created_at', 'id'];
 
     public function __construct(
         public int $v = self::DEFAULT_VERSION,
-        public string $dir = self::DEFAULT_DIR,
+        public string $dir = CursorDirection::NEXT->value,
         public array $filters = [],
         public array $sort = self::DEFAULT_SORT,
         public ?array $pos = null,
@@ -25,7 +24,7 @@ class CursorDto
     {
         return new self(
             v: $data['v'] ?? self::DEFAULT_VERSION,
-            dir: $data['dir'] ?? self::DEFAULT_DIR,
+            dir: $data['dir'] ?? CursorDirection::NEXT->value,
             filters: $data['filters'] ?? [],
             sort: $data['sort'] ?? self::DEFAULT_SORT,
             pos: $data['pos'] ?? null,
