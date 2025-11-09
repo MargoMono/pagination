@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Pagination\Cursor\CursorAdapter;
+use App\Pagination\Cursor\CursorDirection;
 use App\Pagination\Cursor\CursorFactory;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -15,6 +17,9 @@ use Illuminate\Support\Facades\Log;
 
 class UsersDemoController extends Controller
 {
+    /** @var string[] */
+    private array $sort = ['created_at', 'id'];
+
     public function offset(Request $request): JsonResponse
     {
         $limit = (int)$request->input('limit', 50);
@@ -42,26 +47,13 @@ class UsersDemoController extends Controller
         $prev = $request->input('prev');
 
         $token = $next ?? $prev;
-        $dir = $prev ? 'prev' : 'next';
-        $sort = ['created_at', 'id'];
-
-        $operators = [
-            'next' => '>',
-            'prev' => '<',
-        ];
-        $orders = [
-            'next' => 'asc',
-            'prev' => 'desc',
-        ];
+        $direction = CursorDirection::fromRequest($next, $prev);
 
         $dto = $token
             ? CursorFactory::fromToken(token: $token)
-            : CursorFactory::fromParams(sort: $sort, dir: $dir);
+            : CursorFactory::fromParams(sort: $this->sort, dir: $direction->value);
 
-        $query = DB::table('users');
-        foreach ($sort as $column) {
-            $query->orderBy($column, $orders[$dir]);
-        }
+        $query = $this->buildBaseQuery($direction);
 
         if ($dto->hwm !== null) {
             foreach ($dto->hwm as $column => $value) {
@@ -71,39 +63,33 @@ class UsersDemoController extends Controller
 
         if ($dto->pos !== null) {
             $query->whereRowValues(
-                ['created_at', 'id'],
-                $operators[$dir],
+                $this->sort,
+                $direction->operator(),
                 [$dto->pos['created_at'], $dto->pos['id']],
             );
         }
 
-        Log::info($query->limit($limit)->toSql(), [
-            'created_at' => $dto->pos ? $dto->pos['created_at'] : null,
-            'id' => $dto->pos ? $dto->pos['id'] : null,
-        ]);
+        Log::info(
+            $query->limit($limit)->toSql(),
+            [
+                'created_at' => $dto->pos['created_at'] ?? null,
+                'id' => $dto->pos['id'] ?? null,
+            ]
+        );
 
         $items = $query->limit($limit)->get()->all();
 
-        if ($dir === 'prev') {
+        if ($direction->isPrev()) {
             $items = array_reverse($items);
         }
 
-        return response()->json([
-            'limit' => $limit,
-            'next' => CursorAdapter::makeNext(
+        return response()->json(
+            $this->buildCursorResponse(
+                limit: $limit,
                 items: $items,
-                sort: $sort,
-                hwm: ['created_at' => Carbon::now()],
-            ),
-            'prev' => CursorAdapter::makePrev(
-                items: $items,
-                sort: $sort,
-                hwm: ['created_at' => Carbon::now()],
-            ),
-            'items' => $items,
-        ]);
+            )
+        );
     }
-
 
     public function hybrid(Request $request): JsonResponse
     {
@@ -113,40 +99,25 @@ class UsersDemoController extends Controller
         $prev = $request->input('prev');
 
         $token = $next ?? $prev;
-        $dir = $prev ? 'prev' : 'next';
-        $sort = ['created_at', 'id'];
-        $operators = [
-            'next' => '>',
-            'prev' => '<',
-        ];
-        $orders = [
-            'next' => 'asc',
-            'prev' => 'desc',
-        ];
+        $direction = CursorDirection::fromRequest($next, $prev);
 
-        $query = DB::table('users');
-        foreach ($sort as $column) {
-            $query->orderBy($column, $orders[$dir]);
-        }
+        $query = $this->buildBaseQuery($direction);
 
         if ($token === null) {
-            $data = $query->simplePaginate(
-                perPage: $limit,
-                page: $page,
-            );
-
+            $data = $query->simplePaginate(perPage: $limit, page: $page);
             $items = $data->items();
-            if ($data->hasMorePages()) {
-                $nextCursor = CursorAdapter::makeNext(
+
+            $nextCursor = $data->hasMorePages()
+                ? CursorAdapter::makeNext(
                     items: $items,
-                    sort: $sort,
+                    sort: $this->sort,
                     hwm: ['created_at' => Carbon::now()],
-                );
-            }
+                )
+                : null;
 
             return response()->json([
                 'limit' => $limit,
-                'next' => $nextCursor ?? null,
+                'next' => $nextCursor,
                 'prev' => null,
                 'items' => $items,
             ]);
@@ -162,36 +133,62 @@ class UsersDemoController extends Controller
 
         if ($dto->pos !== null) {
             $query->whereRowValues(
-                ['created_at', 'id'],
-                $operators[$dir],
+                $this->sort,
+                $direction->operator(),
                 [$dto->pos['created_at'], $dto->pos['id']],
             );
         }
 
-        Log::info($query->limit($limit)->toSql(), [
-            'created_at' => $dto->pos['created_at'],
-            'id' => $dto->pos['id'],
-        ]);
+        Log::info(
+            $query->limit($limit)->toSql(),
+            [
+                'created_at' => $dto->pos['created_at'] ?? null,
+                'id' => $dto->pos['id'] ?? null,
+            ]
+        );
 
         $items = $query->limit($limit)->get()->all();
 
-        if ($dir === 'prev') {
+        if ($direction->isPrev()) {
             $items = array_reverse($items);
         }
 
-        return response()->json([
+        return response()->json(
+            $this->buildCursorResponse(
+                limit: $limit,
+                items: $items,
+            )
+        );
+    }
+
+    private function buildBaseQuery(CursorDirection $direction): Builder
+    {
+        $query = DB::table('users');
+
+        foreach ($this->sort as $column) {
+            $query->orderBy($column, $direction->order());
+        }
+
+        return $query;
+    }
+
+    private function buildCursorResponse(int $limit, array $items): array
+    {
+        $hwm = ['created_at' => Carbon::now()];
+
+        return [
             'limit' => $limit,
             'next' => CursorAdapter::makeNext(
                 items: $items,
-                sort: $sort,
-                hwm: ['created_at' => Carbon::now()],
+                sort: $this->sort,
+                hwm: $hwm,
             ),
             'prev' => CursorAdapter::makePrev(
                 items: $items,
-                sort: $sort,
-                hwm: ['created_at' => Carbon::now()],
+                sort: $this->sort,
+                hwm: $hwm,
             ),
             'items' => $items,
-        ]);
+        ];
     }
 }
