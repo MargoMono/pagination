@@ -9,7 +9,7 @@ enum CursorDirection: string
     case NEXT = 'next';
     case PREV = 'prev';
 
-    public static function fromRequest(?string $next, ?string $prev): self
+    public static function fromRequest(?string $prev): self
     {
         return $prev !== null ? self::PREV : self::NEXT;
     }

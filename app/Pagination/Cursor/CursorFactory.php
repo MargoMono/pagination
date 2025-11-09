@@ -11,7 +11,7 @@ final class CursorFactory
 {
     private const DEFAULT_TTL = 30;
 
-    public static function fromItems(
+    public function fromItems(
         array $items,
         array $sort,
         CursorDirection $dir,
@@ -52,14 +52,14 @@ final class CursorFactory
         );
     }
 
-    public static function fromToken(
+    public function fromToken(
         string $token,
     ): CursorDto {
         $data = CursorCodec::decode($token);
         return CursorDto::fromArray($data);
     }
 
-    public static function fromParams(
+    public function fromParams(
         array $sort,
         string $dir,
         array $pos = null,

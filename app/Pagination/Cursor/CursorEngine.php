@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Pagination\Cursor;
 
 use App\Pagination\Cursor\Source\CursorSource;
+use App\Support\CursorCodec;
 use Carbon\CarbonImmutable;
 
 final readonly class CursorEngine
@@ -44,12 +47,20 @@ final readonly class CursorEngine
 
         $hwm = ['created_at' => CarbonImmutable::now()];
 
-        return CursorResponseBuilder::build(
-            limit: $limit,
-            items: $items,
-            sort: $sort,
-            hwm: $hwm,
-        );
+        return [
+            'limit' => $limit,
+            'next' => $this->makeNext(
+                items: $items,
+                sort: $sort,
+                hwm: $hwm,
+            ),
+            'prev' => $this->makePrev(
+                items: $items,
+                sort: $sort,
+                hwm: $hwm,
+            ),
+            'items' => $items,
+        ];
     }
 
     public function hybridPage(
@@ -78,7 +89,7 @@ final readonly class CursorEngine
             $hwm = ['created_at' => CarbonImmutable::now()];
 
             $nextCursor = $paginator->hasMorePages()
-                ? CursorAdapter::makeNext(
+                ? $this->makeNext(
                     items: $items,
                     sort: $sort,
                     hwm: $hwm,
@@ -99,5 +110,44 @@ final readonly class CursorEngine
             token: $token,
             direction: $direction,
         );
+    }
+
+    private function makeNext(
+        array $items,
+        array $sort,
+        array $hwm = [],
+        array $filters = [],
+    ): string|null {
+        if (empty($items)) {
+            return null;
+        }
+        $next = $this->cursorFactory->fromItems(
+            items: $items,
+            sort: $sort,
+            dir: CursorDirection::NEXT,
+            filters: $filters,
+            hwm: $hwm,
+        );
+
+        return CursorCodec::encode($next->toArray());
+    }
+
+    private function makePrev(
+        array $items,
+        array $sort,
+        array $hwm = [],
+        array $filters = [],
+    ): string|null {
+        if (empty($items)) {
+            return null;
+        }
+        $prev = $this->cursorFactory->fromItems(
+            items: $items,
+            sort: $sort,
+            dir: CursorDirection::PREV,
+            filters: $filters,
+            hwm: $hwm,
+        );
+        return CursorCodec::encode($prev->toArray());
     }
 }

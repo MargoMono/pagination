@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Pagination\Cursor;
 
 use Illuminate\Database\Query\Builder;

@@ -47,7 +47,7 @@ class UsersDemoController extends Controller
         $prev = $request->input('prev');
 
         $token = $next ?? $prev;
-        $direction = CursorDirection::fromRequest($next, $prev);
+        $direction = CursorDirection::fromRequest(prev: $prev);
 
         $data = $this->engine->cursorPage(
             source: $this->usersSource,
@@ -67,7 +67,7 @@ class UsersDemoController extends Controller
         $prev = $request->input('prev');
 
         $token = $next ?? $prev;
-        $direction = CursorDirection::fromRequest($next, $prev);
+        $direction = CursorDirection::fromRequest(prev: $prev);
 
         $data = $this->engine->hybridPage(
             source: $this->usersSource,
