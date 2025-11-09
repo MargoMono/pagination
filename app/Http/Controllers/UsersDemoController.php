@@ -44,15 +44,14 @@ class UsersDemoController extends Controller
         $token = $next ?? $prev;
         $dir = $prev ? 'prev' : 'next';
         $sort = ['created_at', 'id'];
+
         $operators = [
-            'created_at' => [
-                'next' => '>=',
-                'prev' => '<=',
-            ],
-            'id' => [
-                'next' => '>',
-                'prev' => '<',
-            ]
+            'next' => '>',
+            'prev' => '<',
+        ];
+        $orders = [
+            'next' => 'asc',
+            'prev' => 'desc',
         ];
 
         $dto = $token
@@ -60,6 +59,9 @@ class UsersDemoController extends Controller
             : CursorFactory::fromParams(sort: $sort, dir: $dir);
 
         $query = DB::table('users');
+        foreach ($sort as $column) {
+            $query->orderBy($column, $orders[$dir]);
+        }
 
         if ($dto->hwm !== null) {
             foreach ($dto->hwm as $column => $value) {
@@ -67,17 +69,24 @@ class UsersDemoController extends Controller
             }
         }
 
-        foreach ($dto->pos ?? [] as $column => $value) {
-            $query->where($column, $operators[$column][$dir], $value);
+        if ($dto->pos !== null) {
+            $query->whereRowValues(
+                ['created_at', 'id'],
+                $operators[$dir],
+                [$dto->pos['created_at'], $dto->pos['id']],
+            );
         }
 
-        $dir = $dir == 'next' ? 'asc' : 'desc';
-        foreach ($sort as $column) {
-            $query->orderBy($column, $dir);
-        }
+        Log::info($query->limit($limit)->toSql(), [
+            'created_at' => $dto->pos ? $dto->pos['created_at'] : null,
+            'id' => $dto->pos ? $dto->pos['id'] : null,
+        ]);
 
-        Log::info($query->limit($limit)->toSql());
-        $items = $query->limit($limit)->get()->toArray();
+        $items = $query->limit($limit)->get()->all();
+
+        if ($dir === 'prev') {
+            $items = array_reverse($items);
+        }
 
         return response()->json([
             'limit' => $limit,
@@ -104,22 +113,20 @@ class UsersDemoController extends Controller
         $prev = $request->input('prev');
 
         $token = $next ?? $prev;
-        $dir = $next ? 'next' : ($prev ? 'prev' : null);
+        $dir = $prev ? 'prev' : 'next';
         $sort = ['created_at', 'id'];
         $operators = [
-            'created_at' => [
-                'next' => '>=',
-                'prev' => '<=',
-            ],
-            'id' => [
-                'next' => '>',
-                'prev' => '<',
-            ]
+            'next' => '>',
+            'prev' => '<',
+        ];
+        $orders = [
+            'next' => 'asc',
+            'prev' => 'desc',
         ];
 
         $query = DB::table('users');
         foreach ($sort as $column) {
-            $query->orderBy($column);
+            $query->orderBy($column, $orders[$dir]);
         }
 
         if ($token === null) {
@@ -153,17 +160,24 @@ class UsersDemoController extends Controller
             }
         }
 
-        foreach ($dto->pos ?? [] as $column => $value) {
-            $query->where($column, $operators[$column][$dir], $value);
+        if ($dto->pos !== null) {
+            $query->whereRowValues(
+                ['created_at', 'id'],
+                $operators[$dir],
+                [$dto->pos['created_at'], $dto->pos['id']],
+            );
         }
 
-        $dir = $dir == 'next' ? 'asc' : 'desc';
-        foreach ($sort as $column) {
-            $query->orderBy($column, $dir);
-        }
+        Log::info($query->limit($limit)->toSql(), [
+            'created_at' => $dto->pos['created_at'],
+            'id' => $dto->pos['id'],
+        ]);
 
-        Log::info($query->limit($limit)->toSql());
-        $items = $query->limit($limit)->get()->toArray();
+        $items = $query->limit($limit)->get()->all();
+
+        if ($dir === 'prev') {
+            $items = array_reverse($items);
+        }
 
         return response()->json([
             'limit' => $limit,
@@ -172,7 +186,7 @@ class UsersDemoController extends Controller
                 sort: $sort,
                 hwm: ['created_at' => Carbon::now()],
             ),
-            'prev' => CursorAdapter::makeNext(
+            'prev' => CursorAdapter::makePrev(
                 items: $items,
                 sort: $sort,
                 hwm: ['created_at' => Carbon::now()],

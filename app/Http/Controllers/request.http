@@ -1,41 +1,49 @@
 ### Offset request
 GET {{host}}/api/demo/users/offset?limit=5&page=100000
 
-### Cursor request (first)
+### Cursor request (first) - 176670, 1314096, 5527965, 5960770, 8017663
 GET {{host}}/api/demo/users/cursor?limit=5
 
 > {%
-    const next = response.body.next;
-    client.global.clear("next");
-    client.global.set("next", next);
+    const token = response.body.next;
+    client.global.clear("token");
+    client.global.set("token", token);
 
-    // client.log("next =", next);
+    // client.log("token =", token);
 %}
 
-### Cursor request (second)
-GET {{host}}/api/demo/users/cursor?limit=5&next={{next}}
+### Cursor request (second) - 1100277, 2183177, 2230920, 2631936, 4831861
+GET {{host}}/api/demo/users/cursor?limit=5&next={{token}}
 
 > {%
-    const next = response.body.next;
-    client.global.clear("next");
-    client.global.set("next", next);
+    const token = response.body.prev;
+    client.global.clear("token");
+    client.global.set("token", token);
 %}
 
-### Cursor with offset request (first)
+### Cursor request (third)
+GET {{host}}/api/demo/users/cursor?limit=5&prev={{token}}
+
+
+### Cursor with offset request (first) - 9856517, 4131215, 4562114, 7735864, 2207570
 GET {{host}}/api/demo/users/hybrid?limit=5&page=100000
 
 > {%
-    const next = response.body.next;
-    client.global.clear("next");
-    client.global.set("next", next);
+    const token = response.body.next;
+    client.global.clear("token");
+    client.global.set("token", token);
 %}
 
-### Cursor with offset request (second)
-GET {{host}}/api/demo/users/hybrid?limit=5&next={{next}}
+### Cursor with offset request (second) - 4173035, 4507452, 5554844, 5697740, 6169175
+GET {{host}}/api/demo/users/hybrid?limit=5&next={{token}}
 
 > {%
-    const next = response.body.next;
-    client.global.clear("next");
-    client.global.set("next", next);
+    const token = response.body.prev;
+    client.global.clear("token");
+    client.global.set("token", token);
 %}
+
+### Cursor with offset request (third)
+GET {{host}}/api/demo/users/hybrid?limit=5&prev={{token}}
+
 

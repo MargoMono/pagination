@@ -19,13 +19,25 @@ final class CursorFactory
         array $hwm = null,
         int $ttlMinutes = self::DEFAULT_TTL,
     ): CursorDto {
-        $lastItem = !empty($items)
-            ? $items[array_key_last($items)]
-            : null;
+        if (empty($items)) {
+            return new CursorDto(
+                dir: $dir,
+                filters: $filters,
+                sort: $sort,
+                hwm: $hwm,
+                exp: CarbonImmutable::now()
+                    ->addMinutes($ttlMinutes)
+                    ->getTimestamp(),
+            );
+        }
+
+        $boundaryItem = $dir === 'prev'
+            ? $items[array_key_first($items)]
+            : $items[array_key_last($items)];
 
         $pos = [];
         foreach ($sort as $column) {
-            $pos[$column] = $lastItem->$column;
+            $pos[$column] = $boundaryItem->$column;
         }
 
         return new CursorDto(
