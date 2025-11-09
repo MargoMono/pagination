@@ -54,6 +54,7 @@ class UsersDemoController extends Controller
             limit: $limit,
             token: $token,
             direction: $direction,
+ //           filters: ['verified' => false]
         );
 
         return response()->json($data);

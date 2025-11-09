@@ -18,4 +18,17 @@ class UsersCursorSource implements CursorSource
     {
         return ['created_at', 'id'];
     }
+
+    public function applyFilters(Builder $query, array $filters): void
+    {
+        if (isset($filters['email'])) {
+            $query->where('email', $filters['email']);
+        }
+
+        if (isset($filters['verified'])) {
+            $filters['verified']
+                ? $query->whereNotNull('email_verified_at')
+                : $query->whereNull('email_verified_at');
+        }
+    }
 }

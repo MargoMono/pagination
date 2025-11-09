@@ -19,15 +19,21 @@ final readonly class CursorEngine
         CursorSource $source,
         int $limit,
         ?string $token,
-        CursorDirection $direction
+        CursorDirection $direction,
+        array $filters = [],
     ): array {
         $sort = $source->sortColumns();
 
         $dto = $token
             ? $this->cursorFactory->fromToken($token)
-            : $this->cursorFactory->fromParams(sort: $sort, dir: $direction->value);
+            : $this->cursorFactory->fromParams(
+                sort: $sort,
+                dir: $direction->value,
+                filters: $filters,
+            );
 
         $query = $source->baseQuery();
+        $source->applyFilters($query, $filters);
 
         CursorQueryApplier::apply(
             query: $query,
@@ -53,11 +59,13 @@ final readonly class CursorEngine
                 items: $items,
                 sort: $sort,
                 hwm: $hwm,
+                filters: $dto->filters,
             ),
             'prev' => $this->makePrev(
                 items: $items,
                 sort: $sort,
                 hwm: $hwm,
+                filters: $dto->filters,
             ),
             'items' => $items,
         ];
@@ -68,12 +76,14 @@ final readonly class CursorEngine
         int $limit,
         int $page,
         ?string $token,
-        CursorDirection $direction
+        CursorDirection $direction,
+        array $filters = [],
     ): array {
         $sort = $source->sortColumns();
 
         if ($token === null) {
             $query = $source->baseQuery();
+            $source->applyFilters($query, $filters);
 
             foreach ($sort as $column) {
                 $query->orderBy($column);
@@ -88,17 +98,16 @@ final readonly class CursorEngine
 
             $hwm = ['created_at' => CarbonImmutable::now()];
 
-            $nextCursor = $paginator->hasMorePages()
-                ? $this->makeNext(
-                    items: $items,
-                    sort: $sort,
-                    hwm: $hwm,
-                )
-                : null;
-
             return [
                 'limit' => $limit,
-                'next' => $nextCursor,
+                'next' => $paginator->hasMorePages()
+                    ? $this->makeNext(
+                        items: $items,
+                        sort: $sort,
+                        hwm: $hwm,
+                        filters: $filters,
+                    )
+                    : null,
                 'prev' => null,
                 'items' => $items,
             ];
@@ -118,9 +127,10 @@ final readonly class CursorEngine
         array $hwm = [],
         array $filters = [],
     ): string|null {
-        if (empty($items)) {
+        if ($items === []) {
             return null;
         }
+
         $next = $this->cursorFactory->fromItems(
             items: $items,
             sort: $sort,
@@ -138,9 +148,10 @@ final readonly class CursorEngine
         array $hwm = [],
         array $filters = [],
     ): string|null {
-        if (empty($items)) {
+        if ($items === []) {
             return null;
         }
+
         $prev = $this->cursorFactory->fromItems(
             items: $items,
             sort: $sort,
@@ -148,6 +159,7 @@ final readonly class CursorEngine
             filters: $filters,
             hwm: $hwm,
         );
+
         return CursorCodec::encode($prev->toArray());
     }
 }

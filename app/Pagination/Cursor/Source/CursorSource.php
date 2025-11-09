@@ -11,4 +11,6 @@ interface CursorSource
     public function baseQuery(): Builder;
 
     public function sortColumns(): array;
+
+    public function applyFilters(Builder $query, array $filters): void;
 }
