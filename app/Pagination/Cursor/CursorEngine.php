@@ -61,12 +61,12 @@ final readonly class CursorEngine
                 hwm: $hwm,
                 filters: $dto->filters,
             ),
-            'prev' => $this->makePrev(
+            'prev' => $token ? $this->makePrev(
                 items: $items,
                 sort: $sort,
                 hwm: $hwm,
                 filters: $dto->filters,
-            ),
+            ) : null,
             'items' => $items,
         ];
     }
